@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px; width: 90%; }
+      form button { width: 100px; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; width: calc(100% - 200px);  height: 100%; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      #n { display: inline-block; padding: 10px; width: 200px; color: #FFF; }
+      #m { width: calc(100% - 310px); }
+      #typing-notification { display: none; color: #FFF; background: #000; padding: 10px; position: fixed; bottom: 41px; width: 100%; }
+      #typing-notification.is-visible { display: block; }
+      #main { display: flex; height: calc(100vh - 41px); }
+      #users { width: 200px; border-left: 1px solid #000; height: 100%; padding: 16px 32px; }
+    </style>
+  </head>
+  
+    <div id="main">
+      <ul id="messages"></ul>
+      <ul id="users"></ul>
+    </div>
+    <div id="typing-notification"></div>
+    <form action="">
+      <span id="n">Nickname</span>
+      <input id="m" autocomplete="off" placeholder="Type messages."/>
+      <button>Send</button>
+    </form>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script>
+      var socket = io();
+      $(function () {
+        var nickname;
+        $(document).ready(function(){
+          nickname = prompt('Type your nickname!!')
+          $('#n').text(nickname);
+          socket.emit('enter room', nickname);
+        });
+
+        $('form').submit(function(e) {
+          e.preventDefault(); // prevents page reloading
+          socket.emit('chat message', {
+            nickname: nickname,
+            message: $('#m').val()
+          });
+          var msg = `${nickname}: ${$('#m').val()}`
+          $('#messages').append($('<li>').text(msg));
+          $('#m').val('');
+          return false;
+        });
+        socket.on('chat message', function(msg){
+          $('#messages').append($('<li>').text(msg));
+        });
+
+        // Add “{user} is typing” functionality.
+        $('#m').on('input', function(e){
+          socket.emit('typing', nickname);
+        })
+        socket.on('typing', function(nickname){
+          var el = $('#typing-notification')
+          el.text(`${nickname} is typing...`)
+          el.addClass('is-visible');
+          setTimeout(function(){
+            el.removeClass('is-visible');
+          }, 1000)
+        });
+
+        // Show who’s online.
+        socket.on('user update', function(users){
+          console.log(users)
+          $('#users').empty();
+          for(var i = 0; i < users.length; i++){
+            $('#users').append($('<li>').text(users[i].nickname));
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
